@@ -65,10 +65,10 @@ type Unpi struct {
 }
 
 type Frame struct {
-	commandType CommandType
-	subsystem   Subsystem
-	command     byte
-	payload     []byte
+	CommandType CommandType
+	Subsystem   Subsystem
+	Command     byte
+	Payload     []byte
 }
 
 const SOF byte = 0xFE
@@ -80,16 +80,16 @@ func New(size uint8, transmitter io.ReadWriter) *Unpi {
 func (u *Unpi) Write(frame *Frame) error {
 	cmp := composer.NewWithRW(u.transceiver)
 
-	cmd0 := ((byte(frame.commandType << 5)) & 0xE0) | (byte(frame.subsystem) & 0x1F)
-	cmd1 := frame.command
+	cmd0 := ((byte(frame.CommandType << 5)) & 0xE0) | (byte(frame.Subsystem) & 0x1F)
+	cmd1 := frame.Command
 	cmp.Byte(SOF)
-	len := len(frame.payload)
+	len := len(frame.Payload)
 	if u.size == 1 {
 		cmp.Uint8(uint8(len))
 	} else {
 		cmp.Uint16be(uint16(len))
 	}
-	cmp.Byte(cmd0).Byte(cmd1).Bytes(frame.payload)
+	cmp.Byte(cmd0).Byte(cmd1).Bytes(frame.Payload)
 	fcs := checksum(cmp.Make()[1:])
 	cmp.Byte(fcs)
 	return cmp.Flush()
