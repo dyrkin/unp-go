@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+
+	"github.com/dyrkin/composer"
 )
 
 type CommandType byte
@@ -75,43 +77,22 @@ func New(size uint8, transmitter io.ReadWriter) *Unpi {
 	return &Unpi{size, transmitter}
 }
 
-func (u *Unpi) Write(frame *Frame) (err error) {
-	var writer bytes.Buffer
+func (u *Unpi) Write(frame *Frame) error {
+	cmp := composer.NewWithRW(u.transceiver)
 
 	cmd0 := ((byte(frame.commandType << 5)) & 0xE0) | (byte(frame.subsystem) & 0x1F)
 	cmd1 := frame.command
-	if err = writer.WriteByte(SOF); err != nil {
-		return
-	}
+	cmp.Byte(SOF)
+	len := len(frame.payload)
 	if u.size == 1 {
-		len := byte(len(frame.payload))
-		if err = writer.WriteByte(len); err != nil {
-			return
-		}
+		cmp.Uint8(uint8(len))
 	} else {
-		length := len(frame.payload)
-		if err = writer.WriteByte(byte(length >> 8)); err != nil {
-			return
-		}
-		if err = writer.WriteByte(byte(length & 0xff)); err != nil {
-			return
-		}
+		cmp.Uint16be(uint16(len))
 	}
-	if err = writer.WriteByte(cmd0); err != nil {
-		return
-	}
-	if err = writer.WriteByte(cmd1); err != nil {
-		return
-	}
-	if _, err = writer.Write(frame.payload); err != nil {
-		return
-	}
-	fcs := checksum(writer.Bytes()[1:])
-	if err = writer.WriteByte(fcs); err != nil {
-		return
-	}
-	u.transceiver.Write(writer.Bytes())
-	return
+	cmp.Byte(cmd0).Byte(cmd1).Bytes(frame.payload)
+	fcs := checksum(cmp.Make()[1:])
+	cmp.Byte(fcs)
+	return cmp.Flush()
 }
 
 func (u *Unpi) Read() (frame *Frame, err error) {
