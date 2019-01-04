@@ -61,7 +61,7 @@ const (
 
 type Unpi struct {
 	size        uint8
-	transceiver io.ReadWriter
+	Transceiver io.ReadWriter
 }
 
 type Frame struct {
@@ -78,7 +78,7 @@ func New(size uint8, transmitter io.ReadWriter) *Unpi {
 }
 
 func (u *Unpi) Write(frame *Frame) error {
-	cmp := composer.NewWithRW(u.transceiver)
+	cmp := composer.NewWithRW(u.Transceiver)
 
 	cmd0 := ((byte(frame.CommandType << 5)) & 0xE0) | (byte(frame.Subsystem) & 0x1F)
 	cmd1 := frame.Command
@@ -101,7 +101,7 @@ func (u *Unpi) Read() (frame *Frame, err error) {
 	var checksumBuffer bytes.Buffer
 
 	var read = func() {
-		_, err = io.ReadFull(u.transceiver, buf[:])
+		_, err = io.ReadFull(u.Transceiver, buf[:])
 		b = buf[0]
 		checksumBuffer.WriteByte(b)
 	}
