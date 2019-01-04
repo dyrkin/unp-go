@@ -82,8 +82,13 @@ func New(size uint8, transmitter io.ReadWriter) *Unpi {
 }
 
 func (u *Unpi) Write(frame *Frame) error {
-	cmp := composer.NewWithRW(u.Transceiver)
+	rendered := u.Render(frame)
+	_, err := u.Transceiver.Write(rendered)
+	return err
+}
 
+func (u *Unpi) Render(frame *Frame) []byte {
+	cmp := composer.New()
 	cmd0 := ((byte(frame.CommandType << 5)) & 0xE0) | (byte(frame.Subsystem) & 0x1F)
 	cmd1 := frame.Command
 	cmp.Byte(SOF)
@@ -96,7 +101,7 @@ func (u *Unpi) Write(frame *Frame) error {
 	cmp.Byte(cmd0).Byte(cmd1).Bytes(frame.Payload)
 	fcs := checksum(cmp.Make()[1:])
 	cmp.Byte(fcs)
-	return cmp.Flush()
+	return cmp.Make()
 }
 
 func (u *Unpi) byteReader() {
