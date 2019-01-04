@@ -62,6 +62,7 @@ const (
 type Unpi struct {
 	size        uint8
 	Transceiver io.ReadWriter
+	incoming    chan byte
 }
 
 type Frame struct {
@@ -74,7 +75,9 @@ type Frame struct {
 const SOF byte = 0xFE
 
 func New(size uint8, transmitter io.ReadWriter) *Unpi {
-	return &Unpi{size, transmitter}
+	u := &Unpi{size, transmitter, make(chan byte)}
+	go u.byteReader()
+	return u
 }
 
 func (u *Unpi) Write(frame *Frame) error {
@@ -95,14 +98,23 @@ func (u *Unpi) Write(frame *Frame) error {
 	return cmp.Flush()
 }
 
+func (u *Unpi) byteReader() {
+	var buf [1]byte
+	for {
+		n, _ := io.ReadFull(u.Transceiver, buf[:])
+		if n > 0 {
+			u.incoming <- buf[0]
+		}
+	}
+
+}
+
 func (u *Unpi) Read() (frame *Frame, err error) {
 	var b byte
-	var buf [1]byte
 	var checksumBuffer bytes.Buffer
 
 	var read = func() {
-		_, err = io.ReadFull(u.Transceiver, buf[:])
-		b = buf[0]
+		b = <-u.incoming
 		checksumBuffer.WriteByte(b)
 	}
 	if read(); err != nil {
