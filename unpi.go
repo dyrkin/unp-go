@@ -73,25 +73,25 @@ type Frame struct {
 	Payload     []byte
 }
 
-const SOF byte = 0xFE
+const sof byte = 0xFE
 
 func New(size uint8, transmitter io.ReadWriter) *Unpi {
 	u := &Unpi{size, transmitter, make(chan byte), make(chan error)}
-	go u.byteReader()
+	go u.receiver()
 	return u
 }
 
-func (u *Unpi) Write(frame *Frame) error {
-	rendered := u.Render(frame)
+func (u *Unpi) WriteFrame(frame *Frame) error {
+	rendered := u.RenderFrame(frame)
 	_, err := u.Transceiver.Write(rendered)
 	return err
 }
 
-func (u *Unpi) Render(frame *Frame) []byte {
+func (u *Unpi) RenderFrame(frame *Frame) []byte {
 	cmp := composer.New()
 	cmd0 := ((byte(frame.CommandType << 5)) & 0xE0) | (byte(frame.Subsystem) & 0x1F)
 	cmd1 := frame.Command
-	cmp.Byte(SOF)
+	cmp.Byte(sof)
 	len := len(frame.Payload)
 	if u.size == 1 {
 		cmp.Uint8(uint8(len))
@@ -104,20 +104,7 @@ func (u *Unpi) Render(frame *Frame) []byte {
 	return cmp.Make()
 }
 
-func (u *Unpi) byteReader() {
-	var buf [1]byte
-	for {
-		n, err := io.ReadFull(u.Transceiver, buf[:])
-		if n > 0 {
-			u.incoming <- buf[0]
-		} else if err != io.EOF {
-			u.errors <- err
-		}
-	}
-
-}
-
-func (u *Unpi) Read() (frame *Frame, err error) {
+func (u *Unpi) ReadFrame() (frame *Frame, err error) {
 	var b byte
 	var checksumBuffer bytes.Buffer
 
@@ -131,7 +118,7 @@ func (u *Unpi) Read() (frame *Frame, err error) {
 	if read(); err != nil {
 		return
 	}
-	if b != SOF {
+	if b != sof {
 		return nil, errors.New("Invalid start of frame")
 	}
 	if read(); err != nil {
@@ -184,4 +171,17 @@ func checksum(buf []byte) byte {
 		fcs ^= buf[i]
 	}
 	return fcs
+}
+
+func (u *Unpi) receiver() {
+	var buf [1]byte
+	for {
+		n, err := io.ReadFull(u.Transceiver, buf[:])
+		if n > 0 {
+			u.incoming <- buf[0]
+		} else if err != io.EOF {
+			u.errors <- err
+		}
+	}
+
 }
