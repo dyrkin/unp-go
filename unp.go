@@ -50,7 +50,7 @@ const (
 	S_MAX
 )
 
-type Unpi struct {
+type Unp struct {
 	size        uint8
 	Transceiver io.ReadWriter
 	incoming    chan byte
@@ -66,19 +66,19 @@ type Frame struct {
 
 const sof byte = 0xFE
 
-func New(size uint8, transmitter io.ReadWriter) *Unpi {
-	u := &Unpi{size, transmitter, make(chan byte), make(chan error)}
+func New(size uint8, transmitter io.ReadWriter) *Unp {
+	u := &Unp{size, transmitter, make(chan byte), make(chan error)}
 	go u.receiver()
 	return u
 }
 
-func (u *Unpi) WriteFrame(frame *Frame) error {
+func (u *Unp) WriteFrame(frame *Frame) error {
 	rendered := u.RenderFrame(frame)
 	_, err := u.Transceiver.Write(rendered)
 	return err
 }
 
-func (u *Unpi) RenderFrame(frame *Frame) []byte {
+func (u *Unp) RenderFrame(frame *Frame) []byte {
 	cmp := composer.New()
 	cmd0 := ((byte(frame.CommandType << 5)) & 0xE0) | (byte(frame.Subsystem) & 0x1F)
 	cmd1 := frame.Command
@@ -95,7 +95,7 @@ func (u *Unpi) RenderFrame(frame *Frame) []byte {
 	return cmp.Make()
 }
 
-func (u *Unpi) ReadFrame() (frame *Frame, err error) {
+func (u *Unp) ReadFrame() (frame *Frame, err error) {
 	var b byte
 	var checksumBuffer bytes.Buffer
 
@@ -164,7 +164,7 @@ func checksum(buf []byte) byte {
 	return fcs
 }
 
-func (u *Unpi) receiver() {
+func (u *Unp) receiver() {
 	var buf [1]byte
 	for {
 		n, err := io.ReadFull(u.Transceiver, buf[:])
