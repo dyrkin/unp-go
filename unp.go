@@ -1,4 +1,4 @@
-package unpi
+package unp
 
 import (
 	"bytes"
