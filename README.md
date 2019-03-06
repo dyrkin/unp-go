@@ -1,5 +1,7 @@
 # Unified Network Processor (UNP) Interface
 
+[![Build Status](https://cloud.drone.io/api/badges/dyrkin/unp-go/status.svg?ref=/refs/heads/master)](https://cloud.drone.io/dyrkin/unp-go)
+
 ## Overview
 
 This is Go implementation of TI's Unified Network Processor Interface.
